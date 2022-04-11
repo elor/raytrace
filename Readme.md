@@ -1,6 +1,6 @@
-# raytracezeug
+# raytrace
 
-Inspired by "Ray Tracing in One Weekend" <https://raytracing.github.io/>, which I didn't read or follow beforehand.
+Loosely inspired by "Ray Tracing in One Weekend" <https://raytracing.github.io/>, which I didn't read or follow beforehand.
 
 ## Build & Run
 
