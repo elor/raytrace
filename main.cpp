@@ -1,9 +1,11 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <tuple>
 #include <vector>
 
-std::string filename{"image.ppm"};
+constexpr auto DEFAULT_FILENAME = "image.ppm";
 
 struct Vec3 {
   double x, y, z;
@@ -103,8 +105,16 @@ Ray rayFromPixelPosition(int x, int y, Camera cam, Viewport view) {
   return {cam.position, ray / length(ray)};
 }
 
-int main() {
+int main(int argc, char **argv) {
+  std::string filename{DEFAULT_FILENAME};
+
+  if (argc == 2) {
+    filename = argv[1];
+  }
+
   std::ofstream file(filename);
+
+  std::cout << "rendering into '" << filename << "'" << std::endl;
 
   Camera cam;
   Viewport view;
