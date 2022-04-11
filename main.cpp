@@ -21,6 +21,8 @@ Vec3 operator/(Vec3 v, double d) { return v * (1.0 / d); }
 
 double dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
+double length_squared(Vec3 v) { return dot(v, v); }
+
 double length(Vec3 v) { return sqrt(dot(v, v)); }
 
 Vec3 cross(Vec3 a, Vec3 b) {
@@ -70,16 +72,38 @@ struct Ball {
   Color color{128, 128, 128};
 };
 
-Vec3 closestPoint(Ray ray, Vec3 point) {
-  return ray.origin +
-         ray.direction * std::max(dot(ray.direction, point - ray.origin), 0.0);
+std::tuple<double, Vec3> closestPoint(Ray ray, Vec3 point) {
+  double distance = dot(ray.direction, point - ray.origin);
+  return {distance, ray.origin + ray.direction * distance};
 }
 
 bool intersects(Ball ball, Ray ray) {
-  Vec3 closest = closestPoint(ray, ball.center);
+  auto [directional_distance, closest] = closestPoint(ray, ball.center);
 
-  double distance = length(closest - ball.center);
-  return distance < ball.radius;
+  double closest_distance_squared = length_squared(closest - ball.center);
+  return directional_distance > 0 &&
+         closest_distance_squared < ball.radius * ball.radius;
+}
+
+std::tuple<bool, double, Vec3> intersection(Ray ray, Ball ball) {
+  auto [directional_distance, closest_point] = closestPoint(ray, ball.center);
+
+  if (directional_distance < 0) {
+    return {};
+  };
+
+  double radial_distance_squared = length_squared(closest_point - ball.center);
+  double offset_squared = ball.radius * ball.radius -
+                          radial_distance_squared * radial_distance_squared;
+
+  if (offset_squared < 0.0) {
+    return {};
+  }
+
+  directional_distance -= std::sqrt(offset_squared);
+
+  return {true, directional_distance,
+          ray.origin + ray.direction * directional_distance};
 }
 
 Ray rayFromPixelPosition(int x, int y, Camera cam, Viewport view) {
@@ -121,8 +145,9 @@ int main(int argc, char **argv) {
 
   Color background_color{0, 0, 128};
   std::vector<Ball> balls{
-      {.center{-3, 10, 0}, .radius = 1, .color{128, 128, 200}},
-      {.center{0, 0, -1000000}, .radius = 999999, .color{200, 200, 222}},
+      {.center{-1, 10, 0}, .radius = 2, .color{0, 200, 0}},
+      {.center{1.4, 10, 0}, .radius = 2, .color{200, 0, 0}},
+      {.center{0, 1e5, -1e6}, .radius = 1e6 - 1, .color{200, 200, 222}},
   };
 
   file << "P3\n"
@@ -134,17 +159,18 @@ int main(int argc, char **argv) {
     for (int x = 0; x < view.WIDTH; x++) {
       Ray ray = rayFromPixelPosition(x, y, cam, view);
 
-      bool found{false};
+      Color pixel_color{background_color};
+
+      double minimal_distance = std::numeric_limits<double>::infinity();
       for (const auto &ball : balls) {
-        if (intersects(ball, ray)) {
-          file << ball.color;
-          found = true;
-          break;
+        auto [success, distance, point] = intersection(ray, ball);
+        if (success && distance > 0 && distance < minimal_distance) {
+          pixel_color = ball.color;
+          minimal_distance = distance;
         }
       }
 
-      if (!found)
-        file << background_color;
+      file << pixel_color;
     }
     file << '\n';
   }
